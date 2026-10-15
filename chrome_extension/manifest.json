@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "محاكي GPS لمتصفح كروم | Chrome GPS Simulator",
+  "version": "2.2",
+  "description": "محاكاة شريحة الـ GPS في متصفح كروم بالكامل لجميع المواقع بدون الحاجة لأي ربط خارجي",
+  "icons": {
+    "48": "icon.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "محاكي GPS لمتصفح كروم"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["override.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

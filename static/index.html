@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام تحديد موقع البصمة والدوام | BASMA Duty Location Picker</title>
+  
+  <!-- خطوط Google Fonts (Cairo & Outfit) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Outfit:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- مكتبة Leaflet للخرائط -->
+  <link rel="stylesheet" href="/static/libs/leaflet/leaflet.css">
+  
+  <!-- التنسيقات الرئيسية -->
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20100%20100><text y=%22.9em%22 font-size=%2290%22>📍</text></svg>">
+</head>
+<body class="dark-theme">
+  <!-- رأس الصفحة العلوي (Header) -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon-wrapper">
+        <div class="pulse-indicator"></div>
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+      </div>
+      <div class="brand-info">
+        <h1 class="brand-title">بصمة دوام <span>BASMA Duty</span></h1>
+        <p class="brand-subtitle">نظام تحديد وتثبيت الموقع الجغرافي المعتمد</p>
+      </div>
+    </div>
+
+    <!-- شريط الإحصائيات السريع في الرأس -->
+    <div class="header-coords-badge" id="headerCoordsBadge" title="انقر للنسخ">
+      <span class="status-dot"></span>
+      <span class="badge-label">موقعي المعتمد:</span>
+      <code id="headerCoordsText">30.54182, 29.80293</code>
+      <svg class="copy-mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+    </div>
+
+    <!-- أدوات الرأس (ثيم، لغة، تحديد موقعي، حفظ) -->
+    <div class="header-actions">
+      <button class="btn btn-glass" id="btnLocateMe" title="تحديد موقعي الحقيقي عبر GPS">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="22" y1="12" x2="18" y2="12"></line>
+          <line x1="6" y1="12" x2="2" y2="12"></line>
+          <line x1="12" y1="6" x2="12" y2="2"></line>
+          <line x1="12" y1="22" x2="12" y2="18"></line>
+        </svg>
+        <span class="btn-text">موقعي الفعلي (GPS)</span>
+      </button>
+
+      <button class="btn btn-glass btn-icon" id="btnThemeToggle" title="تبديل المظهر">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+
+      <button class="btn btn-primary btn-glow" id="btnSavePrimary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        <span>حفظ كموقعي الحالي</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- مساحة التطبيق الرئيسية -->
+  <div class="app-layout">
+    <!-- حاوية الخريطة التفاعلية -->
+    <main class="map-wrapper">
+      <div id="map" class="map-container"></div>
+
+      <!-- شريط البحث السريع العائم فوق الخريطة -->
+      <div class="floating-search-bar">
+        <div class="search-input-group">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchInput" placeholder="ابحث عن مكان، شارع، شركة، أو معلم في مصر أو العالم..." autocomplete="off">
+          <button class="search-clear-btn" id="searchClearBtn" style="display: none;">&times;</button>
+          <div class="search-spinner" id="searchSpinner" style="display: none;"></div>
+        </div>
+        <!-- قائمة نتائج البحث المنسدلة -->
+        <div class="search-results-dropdown" id="searchResultsDropdown" style="display: none;"></div>
+      </div>
+
+      <!-- محدد طبقات الخريطة العائم -->
+      <div class="map-layers-floating">
+        <button class="layer-btn active" data-layer="osm" title="خريطة الشوارع (OpenStreetMap)">
+          <span>🗺️ شوارع</span>
+        </button>
+        <button class="layer-btn" data-layer="satellite" title="صور الأقمار الصناعية (Satellite)">
+          <span>🛰️ قمر صناعي</span>
+        </button>
+        <button class="layer-btn" data-layer="dark" title="الوضع الليلي المركز (Carto Dark)">
+          <span>🌙 ليلي</span>
+        </button>
+        <button class="layer-btn" data-layer="topo" title="خريطة التضاريس">
+          <span>⛰️ تضاريس</span>
+        </button>
+      </div>
+
+      <!-- زر إظهار/إخفاء اللوحة الجانبية للشاشات الصغيرة -->
+      <button class="drawer-toggle-btn" id="drawerToggleBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+        <span>اللوحة الجانبية</span>
+      </button>
+
+      <!-- تلميح توجيهي على الخريطة -->
+      <div class="map-guide-banner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>انقر في أي مكان على الخريطة لتثبيت موقعك، أو اسحب الدبوس بحرية</span>
+      </div>
+    </main>
+
+    <!-- اللوحة الجانبية الذكية للتحكم والتفاصيل -->
+    <aside class="control-sidebar" id="controlSidebar">
+      <div class="sidebar-inner">
+
+        <!-- بطاقة الموقع النشط المحدد -->
+        <section class="card active-location-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <span class="beacon-circle"></span>
+              <h2>الموقع المعتمد حالياً</h2>
+            </div>
+            <span class="active-badge" id="activeBadge">نشط ومحدد</span>
+          </div>
+
+          <div class="card-body">
+            <!-- العنوان المقروء -->
+            <div class="address-box">
+              <div class="address-icon">📍</div>
+              <div class="address-content">
+                <span class="label">العنوان التقريبي:</span>
+                <p id="resolvedAddress" class="address-text">طريق مصر الإسكندرية الصحراوي، مصر</p>
+              </div>
+            </div>
+
+            <!-- عرض الإحداثيات في شبكة أنيقة -->
+            <div class="coords-grid">
+              <div class="coord-item">
+                <span class="coord-label">خط العرض (Latitude)</span>
+                <div class="coord-val-wrap">
+                  <span class="coord-val" id="displayLat">30.54182</span>
+                  <button class="copy-btn" data-copy="lat" title="نسخ خط العرض">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="coord-item">
+                <span class="coord-label">خط الطول (Longitude)</span>
+                <div class="coord-val-wrap">
+                  <span class="coord-val" id="displayLon">29.80293</span>
+                  <button class="copy-btn" data-copy="lon" title="نسخ خط الطول">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- تحكم نطاق الدوام / البصمة Geofence Radius -->
+            <div class="geofence-control">
+              <div class="geofence-header">
+                <div class="label-with-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="6"></circle>
+                    <circle cx="12" cy="12" r="2"></circle>
+                  </svg>
+                  <span>نطاق سماح البصمة (Geofence):</span>
+                </div>
+                <span class="geofence-value-badge" id="radiusValText">150 متر</span>
+              </div>
+              <input type="range" id="radiusSlider" min="30" max="2000" step="10" value="150" class="styled-slider">
+              
+              <!-- أزرار الاختيار السريع للنطاق -->
+              <div class="radius-presets">
+                <button class="btn-chip" data-radius="50">50 م</button>
+                <button class="btn-chip active" data-radius="150">150 م</button>
+                <button class="btn-chip" data-radius="300">300 م</button>
+                <button class="btn-chip" data-radius="500">500 م</button>
+                <button class="btn-chip" data-radius="1000">1 كم</button>
+              </div>
+            </div>
+
+            <!-- صندوق نظام تثبيت الـ GPS الافتراضي للأجهزة التي لا تملك عتاد GPS -->
+            <div class="virtual-gps-box">
+              <div class="virtual-gps-header">
+                <span class="v-badge">🛰️ GPS افتراضي (بدون جهاز GPS)</span>
+                <span class="v-status" id="vGpsStatusText">جاهز للتثبيت</span>
+              </div>
+              <p class="v-desc">يثبت مكانك تلقائياً وبدقة عالية في المتصفح والنظام دون الحاجة لجهاز GPS حقيقي.</p>
+              
+              <div class="v-buttons-grid">
+                <button class="btn btn-primary btn-glow" id="btnLockVirtualGps">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  <span>تثبيت وقفل موقعي الآن</span>
+                </button>
+                <button class="btn btn-glass" id="btnVerifyLocation">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  <span>فحص وتأكيد الموقع ✅</span>
+                </button>
+              </div>
+
+              <button class="btn btn-outline btn-block mt-2" id="btnOpenInjectorModal">
+                <span>⚡ تثبيت هذا الموقع في صفحة البصمة الخارجية</span>
+              </button>
+            </div>
+
+            <!-- زر الحفظ المباشر الكبير -->
+            <button class="btn btn-success btn-block btn-lg" id="btnSaveSidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              <span>حفظ وتأكيد الموقع</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- بطاقة محاكي شريحة الـ GPS العتادية -->
+        <section class="card gps-hardware-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <span class="satellite-icon">🛰️</span>
+              <h3>شريحة الـ GPS الافتراضية (Hardware Chip)</h3>
+            </div>
+            <span class="chip-status-badge" id="gpsChipBadge">نشطة ومتصلة</span>
+          </div>
+          <div class="card-body">
+            <div class="chip-details-grid">
+              <div class="chip-stat">
+                <span class="stat-label">نوع الشريحة</span>
+                <span class="stat-val">u-blox NEO-M8N</span>
+              </div>
+              <div class="chip-stat">
+                <span class="stat-label">الأقمار الصناعية</span>
+                <span class="stat-val text-emerald" id="satellitesCount">🛰️ 9 أقمار (3D Fix)</span>
+              </div>
+              <div class="chip-stat">
+                <span class="stat-label">دقة القياس (HDOP)</span>
+                <span class="stat-val text-cyan">0.85 (دقة فائقة ±4م)</span>
+              </div>
+              <div class="chip-stat">
+                <span class="stat-label">بث الشبكة (UDP)</span>
+                <span class="stat-val">127.0.0.1:10110</span>
+              </div>
+            </div>
+
+            <!-- نافذة الأوامر الحية لشريحة GPS NMEA Log -->
+            <div class="nmea-terminal-box">
+              <div class="terminal-header">
+                <span>بث بروتوكول NMEA 0183 الحي من الشريحة:</span>
+                <span class="live-dot"></span>
+              </div>
+              <pre id="nmeaStreamLog">$GPGGA,225532.00,3032.5092,N,02948.1758,E,1,09,0.8,25.0,M,0.0,M,,*6A
+$GPRMC,225532.00,A,3032.5092,N,02948.1758,E,0.02,0.0,121026,,,A*6A</pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- بطاقة الإدخال اليدوي الدقيق للإحداثيات -->
+        <section class="card manual-input-card">
+          <details>
+            <summary class="card-summary">
+              <div class="summary-left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                  <line x1="9" y1="20" x2="15" y2="20"></line>
+                  <line x1="12" y1="4" x2="12" y2="20"></line>
+                </svg>
+                <span>إدخال إحداثيات محددة يدوياً</span>
+              </div>
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            
+            <div class="manual-inputs-container">
+              <div class="input-field">
+                <label for="manualLat">خط العرض (Lat):</label>
+                <input type="number" id="manualLat" step="any" placeholder="30.54182">
+              </div>
+              <div class="input-field">
+                <label for="manualLon">خط الطول (Lon):</label>
+                <input type="number" id="manualLon" step="any" placeholder="29.80293">
+              </div>
+              <button class="btn btn-outline btn-block" id="btnApplyManualCoords">
+                انتقال وتثبيت الإحداثيات
+              </button>
+            </div>
+          </details>
+        </section>
+
+        <!-- بطاقة النسخ والتصدير والربط البرمجي -->
+        <section class="card export-card">
+          <div class="card-header">
+            <h3>التصدير والربط السريع</h3>
+          </div>
+          <div class="card-body">
+            <div class="quick-copy-grid">
+              <button class="btn-tool" id="btnCopyCoords">
+                <span class="tool-icon">📋</span>
+                <span class="tool-name">نسخ (Lat, Lon)</span>
+              </button>
+              <button class="btn-tool" id="btnOpenGoogleMaps">
+                <span class="tool-icon">🧭</span>
+                <span class="tool-name">خرائط Google</span>
+              </button>
+              <button class="btn-tool" id="btnOpenOSM">
+                <span class="tool-icon">🗺️</span>
+                <span class="tool-name">رابط OSM</span>
+              </button>
+              <button class="btn-tool" id="btnCopyPython">
+                <span class="tool-icon">🐍</span>
+                <span class="tool-name">كود بايثون</span>
+              </button>
+              <button class="btn-tool" id="btnDownloadGPX">
+                <span class="tool-icon">📥</span>
+                <span class="tool-name">تحميل GPX</span>
+              </button>
+              <button class="btn-tool" id="btnCopyJSON">
+                <span class="tool-icon">📄</span>
+                <span class="tool-name">صيغة JSON</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- بطاقة مقرات العمل والمفضلات -->
+        <section class="card presets-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              <h3>المقرات المحفوظة والمفضلة</h3>
+            </div>
+            <button class="btn-text-link" id="btnAddFavoriteModal">+ إضافة الحالي</button>
+          </div>
+
+          <div class="card-body">
+            <div class="presets-list" id="presetsList">
+              <!-- يتم ملؤها ديناميكياً بواسطة JavaScript -->
+            </div>
+          </div>
+        </section>
+
+        <!-- معلومات وحقوق النظام -->
+        <footer class="sidebar-footer">
+          <div class="footer-osm-attribution">
+            بيانات الخريطة مقدمة عبر <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>
+          </div>
+          <div class="footer-system-info">
+            <span>نظام BASMA Duty • متوافق مع كافة أنظمة الدوام والحضور</span>
+          </div>
+        </footer>
+
+      </div>
+    </aside>
+  </div>
+
+  <!-- نافذة فحص وتأكيد الموقع (Verification Modal) -->
+  <div class="modal-overlay" id="modalVerification" style="display: none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="v-success-icon">✓</span>
+          <h3>تقرير فحص وتأكيد الموقع</h3>
+        </div>
+        <button class="modal-close-btn" id="btnCloseVerifyModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">تم فحص الموقع والتحقق من صلاحيته وتثبيته كـ GPS افتراضي بنجاح تام:</p>
+        
+        <div class="verify-checklist">
+          <div class="verify-item">
+            <span class="check-icon">✓</span>
+            <div class="check-info">
+              <strong>الإحداثيات الجغرافية:</strong>
+              <code id="verifyCoordsText">30.54182, 29.80293</code>
+            </div>
+          </div>
+          <div class="verify-item">
+            <span class="check-icon">✓</span>
+            <div class="check-info">
+              <strong>العنوان المقروء المعتمد:</strong>
+              <span id="verifyAddressText">طريق مصر الإسكندرية الصحراوي، مصر</span>
+            </div>
+          </div>
+          <div class="verify-item">
+            <span class="check-icon">✓</span>
+            <div class="check-info">
+              <strong>محاكي الـ GPS الافتراضي:</strong>
+              <span class="tag-badge">نشط ومفعل (دقة ±5 أمتار بدون جهاز GPS)</span>
+            </div>
+          </div>
+          <div class="verify-item">
+            <span class="check-icon">✓</span>
+            <div class="check-info">
+              <strong>تكامل ملفات النظام:</strong>
+              <span>تم الحفظ في location.json و .env</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="verify-badge-banner">
+          <span>🔒 جهازك الآن يرسل هذا الموقع كـ موقع فعلي عند طلب أي صفحة للبصمة!</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-block" id="btnConfirmVerifyClose">تم التأكيد، إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة تثبيت الموقع في صفحة البصمة الخارجية (Injector Modal) -->
+  <div class="modal-overlay" id="modalInjector" style="display: none;">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span>⚡</span>
+          <h3>تثبيت موقعك في صفحة البصمة (بدون GPS)</h3>
+        </div>
+        <button class="modal-close-btn" id="btnCloseInjectorModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">لأن جهاز الكمبيوتر لا يحتوي على GPS عتادي، يمكنك إجبار صفحة البصمة على قراءة هذا الموقع المحدد بـ 3 طرق فائقة السهولة:</p>
+
+        <!-- الطريقة 1: كود الكونسول السريع -->
+        <div class="method-card">
+          <div class="method-badge">الطريقة 1 (الأسهل والأضمن)</div>
+          <h4>كود سطر واحد في الكونسول (Console):</h4>
+          <p class="method-desc">افتح صفحة البصمة في المتصفح، اضغط <code>F12</code> ثم انتقل لتبويب <code>Console</code>، والصق هذا الكود واضغط <code>Enter</code>:</p>
+          <div class="code-box">
+            <pre><code id="consoleInjectorCode">navigator.geolocation.getCurrentPosition = (s) => s({coords:{latitude:30.54182,longitude:29.80293,accuracy:5},timestamp:Date.now()});</code></pre>
+            <button class="btn-copy-code" id="btnCopyConsoleCode">نسخ الكود 📋</button>
+          </div>
+        </div>
+
+        <!-- الطريقة 2: زر الإشارة المرجعية (Bookmarklet) -->
+        <div class="method-card">
+          <div class="method-badge">الطريقة 2 (نقرة واحدة دائمة)</div>
+          <h4>إشارة مرجعية (Bookmarklet):</h4>
+          <p class="method-desc">احفظ هذا الرابط في المفضلة (Bookmarks) في متصفحك. وعند فتح صفحة البصمة، فقط اضغط على الإشارة المرجعية وسيتم تثبيت مكانك فوراً!</p>
+          <div class="bookmarklet-box">
+            <a href="#" class="btn btn-glass bookmarklet-link" id="bookmarkletLink">📍 تثبيت موقع البصمة</a>
+            <button class="btn btn-outline" id="btnCopyBookmarklet">نسخ رابط الـ Bookmarklet</button>
+          </div>
+        </div>
+
+        <!-- الطريقة 3: ميزة Sensors الرسمية في المتصفح -->
+        <div class="method-card">
+          <div class="method-badge">الطريقة 3 (مدمجة في Chrome / Edge)</div>
+          <h4>محاكاة الموقع عبر أدوات المطور (Sensors):</h4>
+          <ol class="sensors-steps">
+            <li>في صفحة البصمة اضغط <code>F12</code>.</li>
+            <li>اضغط <code>Ctrl + Shift + P</code> واكتب <strong>Sensors</strong> ثم اضغط Enter.</li>
+            <li>في خانة <strong>Location</strong> اختر <strong>Other...</strong> وضع خط العرض: <code class="lat-copy">30.54182</code> وخط الطول: <code class="lon-copy">29.80293</code>.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnConfirmInjectorClose">فهمت ذلك، شكراً!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نظام الإشعارات العائمة Toast Notifications -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- مكتبة Leaflet ومحرك التطبيق -->
+  <script src="/static/libs/leaflet/leaflet.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

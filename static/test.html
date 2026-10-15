@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>صفحة اختبار فحص الـ GPS الفعلي | BASMA Duty Test</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/libs/leaflet/leaflet.css">
+  <style>
+    body {
+      background: #080c16;
+      color: #f8fafc;
+      font-family: 'Cairo', sans-serif;
+      margin: 0;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .test-card {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 680px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 1.4rem;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    p.desc {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .btn-test {
+      background: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);
+      color: #fff;
+      border: none;
+      padding: 14px 24px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 800;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+      transition: all 0.2s;
+    }
+    .btn-test:hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+    }
+    .result-box {
+      margin-top: 24px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px;
+      display: none;
+    }
+    .result-header {
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .result-header.success { color: #10b981; }
+    .result-header.error { color: #f43f5e; }
+    .grid-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-item {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .stat-item span {
+      display: block;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .stat-item code {
+      font-family: 'JetBrains Mono', monospace;
+      color: #38bdf8;
+      font-size: 0.95rem;
+      direction: ltr;
+      display: block;
+    }
+    #miniMap {
+      width: 100%;
+      height: 250px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-top: 14px;
+    }
+    .verdict-banner {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      text-align: center;
+    }
+    .verdict-banner.real {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .back-link {
+      margin-top: 20px;
+      color: #38bdf8;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-card">
+    <h1>🧪 أداة الفحص المستقل: هل التغيير حقيقي؟</h1>
+    <p class="desc">
+      هذه الصفحة مستقلة تماماً وتطلب من المتصفح موقعك عبر استدعاء <code>navigator.geolocation.getCurrentPosition()</code> الأصلي لاختبار ما إذا كان المتصفح سيقرأ موقعك المعتمد أم موقع الـ IP العشوائي.
+    </p>
+
+    <button class="btn-test" id="btnRunTest">📡 فحص الموقع الذي يقرأه المتصفح الآن</button>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-header success" id="resultStatus">
+        <span>✓</span> <span>تم استلام بيانات الـ GPS بنجاح!</span>
+      </div>
+
+      <div class="grid-stats">
+        <div class="stat-item">
+          <span>خط العرض المستلم (Latitude):</span>
+          <code id="resLat">--</code>
+        </div>
+        <div class="stat-item">
+          <span>خط الطول المستلم (Longitude):</span>
+          <code id="resLon">--</code>
+        </div>
+        <div class="stat-item">
+          <span>دقة التحديد (Accuracy):</span>
+          <code id="resAcc">--</code>
+        </div>
+        <div class="stat-item">
+          <span>التوقيت اللحظي (Timestamp):</span>
+          <code id="resTime">--</code>
+        </div>
+      </div>
+
+      <div class="verdict-banner real" id="verdictText">
+        🎯 النتيجة: التغيير حقيقي وفعلي! المتصفح يرى موقعك المعتمد بدقة.
+      </div>
+
+      <div id="miniMap"></div>
+    </div>
+  </div>
+
+  <a href="/" class="back-link">← العودة إلى واجهة خريطة BASMA Duty</a>
+
+  <script src="/static/libs/leaflet/leaflet.js"></script>
+  <script>
+    let miniMapInstance = null;
+
+    document.getElementById('btnRunTest').addEventListener('click', () => {
+      const btn = document.getElementById('btnRunTest');
+      btn.textContent = 'جاري الاتصال بخدمة الموقع في المتصفح...';
+
+      if (!navigator.geolocation) {
+        alert('المتصفح لا يدعم Geolocation');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          btn.textContent = '🔄 إعادة الفحص مرة أخرى';
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const acc = pos.coords.accuracy;
+          const time = new Date(pos.timestamp).toLocaleTimeString();
+
+          document.getElementById('resLat').textContent = lat.toFixed(6);
+          document.getElementById('resLon').textContent = lon.toFixed(6);
+          document.getElementById('resAcc').textContent = `±${Math.round(acc)} متر`;
+          document.getElementById('resTime').textContent = time;
+
+          document.getElementById('resultBox').style.display = 'block';
+
+          // مقارنة مع موقع النظام
+          fetch('/api/location')
+            .then(r => r.json())
+            .then(sysLoc => {
+              const diffLat = Math.abs(lat - sysLoc.lat);
+              const diffLon = Math.abs(lon - sysLoc.lon);
+              const verdict = document.getElementById('verdictText');
+              
+              if (diffLat < 0.05 && diffLon < 0.05) {
+                verdict.className = 'verdict-banner real';
+                verdict.innerHTML = `✅ <strong>التغيير حقيقي 100%!</strong><br>المتصفح يقرأ موقعك المعتمد (${sysLoc.address || 'موقعك المختار'}) بدلاً من موقع الـ IP العشوائي!`;
+              } else {
+                verdict.className = 'verdict-banner';
+                verdict.style.background = 'rgba(245, 158, 11, 0.15)';
+                verdict.style.color = '#fbbf24';
+                verdict.innerHTML = `⚠️ المتصفح يقرأ موقعاً مختلفاً عن موقع النظام المعتمد. تأكد من تفعيل إضافة BASMA Duty أو ميزة Sensors.`;
+              }
+            });
+
+          // عرض الخريطة
+          if (!miniMapInstance) {
+            miniMapInstance = L.map('miniMap').setView([lat, lon], 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMapInstance);
+            L.marker([lat, lon]).addTo(miniMapInstance).bindPopup('الموقع الفعلي الذي قرأه المتصفح').openPopup();
+          } else {
+            miniMapInstance.setView([lat, lon], 16);
+          }
+        },
+        (err) => {
+          btn.textContent = 'فشل الفحص - حاول مجدداً';
+          alert('حدث خطأ أثناء قراءة الموقع من المتصفح: ' + err.message);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    });
+  </script>
+</body>
+</html>
